@@ -1,0 +1,37 @@
+HTTP/1.1 302 Moved Temporarily
+Server: nginx
+Date: Sun, 22 May 2016 16:29:08 GMT
+Content-Type: text/html;
+charset=UTF-8
+Content-Length: 0
+Connection: keep-alive
+Expires: Thu, 19 Nov 1981 08:52:00 GMT
+Cache-Control: no-store, no-cache, must-revalidate, post-check=0, pre-check=0
+Pragma: no-cache
+Set-Cookie: PHPSESSID=860qfr90pbljp0qbtp8v753l47;
+path=/
+Set-Cookie: lang_id=2;
+expires=Mon, 22-May-2017 22:17:54 GMT;
+path=/
+Set-Cookie: country=ua;
+expires=Mon, 22-May-2017 22:17:54 GMT;
+path=/ location: https://ua.baza-broker.com/login
+Vary: Accept-Encoding X-Proxy: web377 HTTP/1.1 200 OK
+Server: nginx Date: Sun, 22 May 2016 16:29:08 GMT
+Content-Type: text/html; charset=UTF-8
+Transfer-Encoding: chunked
+Connection: keep-alive Pragma: no-cache
+Set-Cookie: PHPSESSID=vole94ridb7s3t6tgh1sg6mqg1;
+path=/
+Set-Cookie: lang_id=2;
+expires=Mon, 22-May-2017 22:17:54 GMT;
+path=/
+Set-Cookie: country=ua;
+expires=Mon, 22-May-2017 22:17:54 GMT;
+path=/
+Set-Cookie: region=1;
+expires=Mon, 22-May-2017 22:17:54 GMT;
+path=/
+X-Page-Speed: on
+Cache-Control: max-age=0, no-cache, no-store
+X-Proxy: web377
