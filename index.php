@@ -4,16 +4,23 @@ include_once "checklogin.php";
 //include_once "district.php";
 include_once "parser/districts.php";
 include_once "parser/estateType.php";
-require_once('parser/modules/PHPExcel.php');
-require_once('parser/modules/PHPExcel/Writer/Excel5.php');
+require_once ('parser/modules/PHPExcel.php');
+require_once ('parser/modules/PHPExcel/Writer/Excel5.php');
+
+$time1 = date("Y-m-d H:i:s");
+print_r("0 - $time1");
+$time1 = date("Y-m-d H:i:s");
+$cc = checklogin();
 
 
-if (!checklogin()) {
+if (!$cc) {
     header("Location: http://www.avangards.com.ua/my-profile");
     exit();
 }
 if (isset($_GET['pass'])) {
-    header("Location: index.php");
+
+    //header("Location: http://bd.avangards.com.ua/index.php");
+    //exit();
 }
 
 function typeop($id)
@@ -279,8 +286,8 @@ $op = 1;
 $sql = "";
 $sql1 = "SELECT * FROM `parsed` main LEFT JOIN (SELECT id_mn as idmn FROM `comments`) comments1 ON main.id_mn=comments1.idmn
  LEFT JOIN (SELECT post_id, user_id FROM `watched_row`) wr ON main.id_mn=wr.post_id 
- WHERE operation=:op ";
-$sql2 = "SELECT COUNT(*) as entries FROM parsed WHERE operation=:op ";
+ WHERE operation=$op ";
+$sql2 = "SELECT COUNT(*) as entries FROM parsed WHERE operation=$op ";
 
 $page = 0;
 if (isset($_GET['page']) && isset($_GET['pager_active']) && $_GET['pager_active'] == 'true') $page = $_GET['page'];
@@ -547,11 +554,15 @@ if (!isset($_GET['uid']) || empty($_GET['uid'])) :
         }
     }
     //$db1 = $db;
+    $time1 = date("Y-m-d H:i:s");
+    print_r("<br>$sql1 . $sql .  'ORDER BY adDate DESC LIMIT $page,50'");
+    exit();
     $offers = $db->query($sql1 . $sql . " ORDER BY adDate DESC LIMIT $page,50");
 
     $entries = $db1->query($sql2 . $sql);
 //print_r($pages_pag);
 else:
+
     $uid = $_GET['uid'];
     $sql .= "AND `id_mn` LIKE '$uid%'";
     $offers = $db->query($sql1 . $sql . " ORDER BY adDate DESC LIMIT $page,50");
@@ -851,8 +862,7 @@ if (!$ajax) {
             <div style="padding 0px; display:none; margin: 0px; height: 100px; visibility: hidden; overflow: hidden" id="ty_d">
                 <?php
                 $op_i = isset($_GET['op']) ? $_GET['op'] : 1;
-                if ($_GET['fl_city'] == 'Пригород') $op_i = 6;
-                echo "op_i - $op_i";
+
                 foreach ($estateType[$op_i] as $estT) :
                     if (isset($_GET['fl_type']) && in_array($estT, $_GET['fl_type'])) {
                         echo '<input type="checkbox" name="fl_type[]"  value="' . $estT . '" checked="checked">' . $estT . '<br>';
