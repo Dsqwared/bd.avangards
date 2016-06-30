@@ -4,23 +4,20 @@ include_once "checklogin.php";
 //include_once "district.php";
 include_once "parser/districts.php";
 include_once "parser/estateType.php";
-require_once ('parser/modules/PHPExcel.php');
-require_once ('parser/modules/PHPExcel/Writer/Excel5.php');
+require_once('parser/modules/PHPExcel.php');
+require_once('parser/modules/PHPExcel/Writer/Excel5.php');
 
-$time1 = date("Y-m-d H:i:s");
-print_r("0 - $time1");
-$time1 = date("Y-m-d H:i:s");
+$time1 = date("H:i:s");
+
 $cc = checklogin();
-
 
 if (!$cc) {
     header("Location: http://www.avangards.com.ua/my-profile");
     exit();
 }
 if (isset($_GET['pass'])) {
-
-    //header("Location: http://bd.avangards.com.ua/index.php");
-    //exit();
+    header("Location: http://bd.avangards.com.ua/index.php");
+    exit();
 }
 
 function typeop($id)
@@ -39,6 +36,19 @@ function typeop($id)
         default:
             return '---';
     }
+}
+
+function clear_text($text)
+{
+
+    $mass = array("-- с. " => "","-- пос. " => "", "-- пгт " => "", "-- г." => "", "-- " => "");
+    $fl_mic1=strtr($text, $mass);
+
+    if ($fl_mic1) {
+        return $fl_mic1;
+    } else
+        return $text;
+
 }
 
 function formExcel($data)
@@ -285,10 +295,9 @@ $db1 = new Db();
 $op = 1;
 $sql = "";
 $sql1 = "SELECT * FROM `parsed` main LEFT JOIN (SELECT id_mn as idmn FROM `comments`) comments1 ON main.id_mn=comments1.idmn
- LEFT JOIN (SELECT post_id, user_id FROM `watched_row`) wr ON main.id_mn=wr.post_id 
- WHERE operation=$op ";
-$sql2 = "SELECT COUNT(*) as entries FROM parsed WHERE operation=$op ";
-
+ WHERE operation=:op ";
+$sql2 = "SELECT COUNT(*) as entries FROM parsed WHERE operation=:op ";
+//LEFT JOIN (SELECT post_id, user_id FROM `watched_row`) wr ON main.id_mn=wr.post_id
 $page = 0;
 if (isset($_GET['page']) && isset($_GET['pager_active']) && $_GET['pager_active'] == 'true') $page = $_GET['page'];
 $page_c = $page;
@@ -305,21 +314,109 @@ $db1->bind("op", $op);
 if (!isset($_GET['uid']) || empty($_GET['uid'])) :
 
     if (isset($_GET['fl_mic']) && !empty($_GET['fl_mic'])) {
-        //$db->bind("fl_mic","%".$_GET['fl_mic']."%");
-        //$sql.=' AND district LIKE :fl_mic';
-        $arr_fl_mic = $_GET['fl_mic'];
-        $arr_fl_mic1 = $arr_fl_mic;
-        if (count($arr_fl_mic) >= 1) {
-            $fl_mic_ = array_shift($arr_fl_mic);
-            //$db->bind("frm",$frm_);
-            $sql .= " AND (district LIKE '%" . addslashes($fl_mic_) . "%'";
-            if (count($arr_fl_mic) >= 1) {
-                foreach ($arr_fl_mic as $fl_mic_) {
-                    //$db->bind("frm",$frm_);
-                    $sql .= " OR district LIKE '%" . addslashes($fl_mic_) . "%'";
+
+        if ($_GET['fl_city'] == "Пригород") {
+            $arr_fl_mic = $_GET['fl_mic'];
+            $arr_fl_mic1 = $arr_fl_mic;
+
+            if (in_array("Днепропетровский р-н", $arr_fl_mic1)) {
+                if (count($arr_fl_mic) >= 1) {
+                    $dp_count = count($districts[7]);
+
+                    for ($i = 0; $i < $dp_count; $i++) {
+                        if ($i == 0)
+                            $sql .= "AND (city = '" . $districts[7][$i] . "'";
+                        else
+                            $sql .= " OR city = '" . $districts[7][$i] . "'";
+                    }
+                    $sql .= ")";
+
                 }
+            } elseif (in_array("Новомосковский р-н", $arr_fl_mic1)) {
+                if (count($arr_fl_mic) >= 1) {
+                    $dp_count = count($districts[8]);
+
+                    for ($i = 0; $i < $dp_count; $i++) {
+                        $fl_mic1 = clear_text($districts[8][$i]);
+
+                        if ($i == 0)
+                            $sql .= "AND (city = '" .   $fl_mic1 . "' or district = '" . $fl_mic1 . "'";
+                        else
+                            $sql .= " OR city like '" . $fl_mic1 ."' or district like ('%" . $fl_mic1 . "%')";
+                    }
+                    $sql .= ")";
+
+                   // echo "$sql<br>";
+
+                }
+            } else {  //$db->bind("fl_mic","%".$_GET['fl_mic']."%");
+                //$sql.=' AND district LIKE :fl_mic';
+                $arr_fl_mic = $_GET['fl_mic'];
+                $arr_fl_mic1 = $arr_fl_mic;
+                /*if (count($arr_fl_mic) >= 1) {
+                    $fl_mic_ = array_shift($arr_fl_mic);
+
+                    //$db->bind("frm",$frm_);
+
+                    $fl_mic1 = clear_text($fl_mic_);
+                    echo "<br>$fl_mic_<br>";
+                    echo "$fl_mic1<br>";
+
+                    $sql .= " AND (city LIKE '%" . addslashes($fl_mic1) . "%'";
+                    if (count($arr_fl_mic) >= 1) {
+                        foreach ($arr_fl_mic as $fl_mic_) {
+                            $fl_mic1 = clear_text($fl_mic_);
+                            $sql .= " OR city LIKE '%" . addslashes($fl_mic1) . "%'";
+                        }
+                    }
+
+
+                    $sql .= ")";
+
+
+                }*/
+
+                if (count($arr_fl_mic) >= 1) {
+
+
+                    for ($i = 0; $i < count($arr_fl_mic); $i++) {
+                        $fl_mic1 = clear_text($arr_fl_mic[$i]);
+                        $fl_mic1 = trim($fl_mic1);
+                        if ($fl_mic1 == "Слобожанское (до 2016 г. - Юбилейное)")
+                        $fl_mic1 = 'Юбилейное';
+
+                        if ($i == 0)
+                            $sql .= " AND (city like ('" . $fl_mic1 . "') or district like ('" . $fl_mic1 . "')";
+                        else
+                            $sql .= " OR city like ('" . $fl_mic1 . "') or district like ('" . $fl_mic1 . "')";
+                    }
+                    $sql .= ")";
+
+                }
+
+                //echo "$sql<br>";
+
+
             }
-            $sql .= ")";
+
+        } else {
+
+            //$db->bind("fl_mic","%".$_GET['fl_mic']."%");
+            //$sql.=' AND district LIKE :fl_mic';
+            $arr_fl_mic = $_GET['fl_mic'];
+            $arr_fl_mic1 = $arr_fl_mic;
+            if (count($arr_fl_mic) >= 1) {
+                $fl_mic_ = array_shift($arr_fl_mic);
+                //$db->bind("frm",$frm_);
+                $sql .= " AND (district like ('%" . addslashes($fl_mic_) . "%')";
+                if (count($arr_fl_mic) >= 1) {
+                    foreach ($arr_fl_mic as $fl_mic_) {
+                        //$db->bind("frm",$frm_);
+                        $sql .= " OR district like ('%" . addslashes($fl_mic_) . "%')";
+                    }
+                }
+                $sql .= ")";
+            }
         }
     }
 
@@ -554,13 +651,20 @@ if (!isset($_GET['uid']) || empty($_GET['uid'])) :
         }
     }
     //$db1 = $db;
-    $time1 = date("Y-m-d H:i:s");
-    print_r("<br>$sql1 . $sql .  'ORDER BY adDate DESC LIMIT $page,50'");
-    exit();
-    $offers = $db->query($sql1 . $sql . " ORDER BY adDate DESC LIMIT $page,50");
 
+    //exit();
+    $offers = $db->query($sql1 . $sql . "Group By id_mn,id,frm,region,city,adistrict,district,street,rooms,floor,max_floor,area,area_json,operation,marketSegment,estateType,adDate,phones,price,text,url,images,flags,time_added,time_revised,is_revised,is_watched,time_watched,idmn ORDER BY adDate DESC LIMIT $page,50");
+//echo $sql1 . $sql . "ORDER BY adDate DESC LIMIT $page,50";
     $entries = $db1->query($sql2 . $sql);
-//print_r($pages_pag);
+
+    $time2 = date("H:i:s");
+    $raznica = floor((time() - strtotime($time1)));
+    $min = floor($raznica/60);
+    $sec = $raznica%60;
+    //if ($min < 10) $min= '0'.$min;
+    //if ($sec < 10) $sec= '0'.$sec;
+    //echo("<div class='time-upload'>время на обработку- $min:$sec</div>");
+
 else:
 
     $uid = $_GET['uid'];
@@ -572,7 +676,7 @@ endif;
 
 $stats = $db->query('SELECT * FROM stats WHERE id=1');
 $user_id = str_replace("user", "", $_COOKIE['bd_usr']);
-$filters = $db->query('SELECT * FROM `saved_filters` where user_id ='.$user_id);
+$filters = $db->query('SELECT * FROM `saved_filters` where user_id =' . $user_id);
 
 $pages_pag = round($entries[0]['entries'] / 50);
 
@@ -624,30 +728,32 @@ if (!$ajax) {
         <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
         <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
         <![endif]-->
-         <style type="text/css">
-             .row-fiter-left{
-                 display: inline-block;
-                 float: left;
-             }
-             .row-fiter-left select{
-                 width: 157px;
-             }
+        <style type="text/css">
+            .row-fiter-left {
+                display: inline-block;
+                float: left;
+            }
 
+            .row-fiter-left select {
+                width: 157px;
+            }
 
-             .bg-base1{
-                 display: inline-block;
-                 float: left!important;
-             }
-             .bg-base2{
-                 float: right!important;
-             }
-             .row-fiter-right{
-                 height: 28px;
-                 width: 51%;
-                 float: left;
-                 display: block;
-             }
-         </style>
+            .bg-base1 {
+                display: inline-block;
+                float: left !important;
+            }
+
+            .bg-base2 {
+                float: right !important;
+            }
+
+            .row-fiter-right {
+                height: 28px;
+                width: 51%;
+                float: left;
+                display: block;
+            }
+        </style>
     </head>
     <body>
 
@@ -669,11 +775,11 @@ if (!$ajax) {
     <div style="padding-top:5px;">
 
         <ul class="nav nav-pills pull-left">
-            <li <?php if ($op == 1) echo 'class="active"' ?>><a href="?op=1">Продам</a></li>
-            <li <?php if ($op == 2) echo 'class="active"' ?>><a href="?op=2">Сдам</a></li>
-            <li <?php if ($op == 3) echo 'class="active"' ?>><a href="?op=3">Сдам посуточно</a></li>
-            <li <?php if ($op == 4) echo 'class="active"' ?>><a href="?op=4">Куплю</a></li>
-            <li <?php if ($op == 5) echo 'class="active"' ?>><a href="?op=5">Сниму</a></li>
+            <li <?php if ($op == 1) echo 'class="active"' ?>><a name="?op=1">Продам</a></li>
+            <li <?php if ($op == 2) echo 'class="active"' ?>><a name="?op=2">Сдам</a></li>
+            <li <?php if ($op == 3) echo 'class="active"' ?>><a name="?op=3">Сдам посуточно</a></li>
+            <li <?php if ($op == 4) echo 'class="active"' ?>><a name="?op=4">Куплю</a></li>
+            <li <?php if ($op == 5) echo 'class="active"' ?>><a name="?op=5">Сниму</a></li>
         </ul>
         <!--<div class="pull-right">
                 <input class="form-control" type="submit" onClick="export_exel()" value="Експорт CSV" style="margin-top:3px">
@@ -693,10 +799,10 @@ if (!$ajax) {
             <a href="https://drive.google.com/folderview?id=0B9UtDVocU5ENZGJMVmVsdGlON1U&usp=sharing"
                class="form-control" style="margin-top:3px" target="_blank">Материалы</a>
         </div> -->
-       <!-- <div class="pull-right float">
-            <a href="https://docs.google.com/spreadsheets/d/17-_Pgd05K-9m--ZiBdVsLQpiVsR1OMNRgw54M75lsNg/edit#gid=293202143"
-               class="form-control" style="margin-top:3px" target="_blank">Клиентская База</a>
-        </div> -->
+        <!-- <div class="pull-right float">
+             <a href="https://docs.google.com/spreadsheets/d/17-_Pgd05K-9m--ZiBdVsLQpiVsR1OMNRgw54M75lsNg/edit#gid=293202143"
+                class="form-control" style="margin-top:3px" target="_blank">Клиентская База</a>
+         </div> -->
         <!--<div class="pull-right float">
             <a href="#" class="form-control" id="add_g_entry" style="margin-top:3px">+</a>
         </div>-->
@@ -708,119 +814,141 @@ if (!$ajax) {
         <form method="get" id="frm_filter" class="form-inline">
             <div class="container">
                 <div class="row">
-                <div class="row-centered col-md-6 col-lg-6 col-xs-12">
-                    <div class="col-centered" style="margin-top:0px;">
-                        <input class="btn btn-default" type="submit" value="Фильтровать">
-                        <input class="btn btn-primary reset-filter" type="button" value="Обнулить фильтр">
-                        <select class="btn btn-default" style="width: 100px; height: 37px;" id="select_filter">
-                            <option class="fls" data-id="0" value="?" <?php if (!isset($_GET['filter_id'])) {
-                                echo 'selected="selected"'; } ?>>Фильтр</option>
-                            <?php
-                            foreach ($filters as $filter_) {
+                    <div class="row-centered col-md-6 col-lg-6 col-xs-12">
+                        <div class="col-centered" style="margin-top:0px;">
+                            <input class="btn btn-default" type="submit" value="Фильтровать">
+                            <input class="btn btn-primary reset-filter" type="button" value="Обнулить фильтр">
+                            <select class="btn btn-default" style="width: 100px; height: 37px;" id="select_filter">
+                                <option class="fls" data-id="0" value="?" <?php if (!isset($_GET['filter_id'])) {
+                                    echo 'selected="selected"';
+                                } ?>>Фильтр
+                                </option>
+                                <?php
+                                foreach ($filters as $filter_) {
+                                    ?>
+                                    <?php if (isset($_GET['filter_id']) && $_GET['filter_id'] == $filter_['id']) { ?>
+                                        <option class="fls" value="<?= $filter_['query'] ?>"
+                                                data-id="<?= $filter_['id'] ?>"
+                                                selected="selected"><?= $filter_['name'] ?></option>
+                                        <?php
+                                    } else { ?>
+                                        <option class="fls" value="<?= $filter_['query'] ?>"
+                                                data-id="<?= $filter_['id'] ?>"><?= $filter_['name'] ?></option>
+                                    <?php }
+                                }
                                 ?>
-                                <?php if (isset($_GET['filter_id']) && $_GET['filter_id'] == $filter_['id']) { ?>
-                                    <option class="fls" value="<?= $filter_['query'] ?>" data-id="<?= $filter_['id'] ?>"
-                                            selected="selected"><?= $filter_['name'] ?></option>
-                                    <?php
-                                } else { ?>
-                                    <option class="fls" value="<?= $filter_['query'] ?>"
-                                            data-id="<?= $filter_['id'] ?>"><?= $filter_['name'] ?></option>
-                                <?php }
-                            }
-                            ?>
 
-                        </select>
-                        <?php if (!isset($_GET['filter_id']) || $_GET['filter_id'] == 0) { ?>
-                            <input class="btn btn-primary save-filter" type="button" disabled="disabled"
-                                   value="Сохранить фильтр">
-                        <?php } else { ?>
-                            <input class="btn btn-primary remove-filter" id="r_filter" type="button"
-                                   data-id="<?= $_GET['filter_id'] ?>" value="Удалить фильтр">
-                        <?php } ?>
-                        <input class="btn" id="name_filter" type="text" placeholder="Название фильтра"
-                               style="display:none">
-                        <input class="btn btn-primary" id="save_filter" type="button" value="Сохранить фильтр"
-                               style="display:none">
+                            </select>
+                            <?php if (!isset($_GET['filter_id']) || $_GET['filter_id'] == 0) { ?>
+                                <input class="btn btn-primary save-filter" type="button" disabled="disabled"
+                                       value="Сохранить фильтр">
+                            <?php } else { ?>
+                                <input class="btn btn-primary remove-filter" id="r_filter" type="button"
+                                       data-id="<?= $_GET['filter_id'] ?>" value="Удалить фильтр">
+                            <?php } ?>
+                            <input class="btn" id="name_filter" type="text" placeholder="Название фильтра"
+                                   style="display:none">
+                            <input class="btn btn-primary" id="save_filter" type="button" value="Сохранить фильтр"
+                                   style="display:none">
+                        </div>
                     </div>
-                </div>
-                <legend class="col-md-6 col-lg-6 col-xs-12" style="height:28px">
-                    <div class="pull-right bg-warning bg-base1" style="font-size:12px;padding: 0 6px;">
-                        <!--<label class="l-radio">Города для поиска</label>-->
-                        <input type="radio" name="fl_city"
-                               value="Днепропетровск" <?php if ((isset($_GET['fl_city']) && $_GET['fl_city'] == 'Днепропетровск') || !isset($_GET['fl_city'])) {
-                            echo 'checked="checked"';
-                        } ?> class="frm_ch1"/> <span class="l-radio">Днепропетровск</span>
-                        <input type="radio" name="fl_city"
-                               value="Пригород" <?php if ((isset($_GET['fl_city']) && $_GET['fl_city'] == 'Пригород')) {
-                            echo 'checked="checked"';
-                        } ?> class="frm_ch1"/> <span class="l-radio">Пригород</span>
-                        <!--
+                    <legend class="col-md-6 col-lg-6 col-xs-12" style="height:28px">
+                        <div class="pull-right bg-warning bg-base1" style="font-size:12px;padding: 0 6px;">
+                            <!--<label class="l-radio">Города для поиска</label>-->
+                            <input type="radio" name="fl_city"
+                                   value="Днепропетровск" <?php if ((isset($_GET['fl_city']) && $_GET['fl_city'] == 'Днепропетровск') || !isset($_GET['fl_city'])) {
+                                echo 'checked="checked"';
+                            } ?> class="frm_ch1"/> <span class="l-radio">Днепропетровск</span>
+                            <input type="radio" name="fl_city"
+                                   value="Пригород" <?php if ((isset($_GET['fl_city']) && $_GET['fl_city'] == 'Пригород')) {
+                                echo 'checked="checked"';
+                            } ?> class="frm_ch1"/> <span class="l-radio">Пригород</span>
+                            <!--
 								<input type="radio" name="fl_city" value="Днепродзержинск" <?php if ((isset($_GET['fl_city']) && $_GET['fl_city'] == 'Днепродзержинск')) {
-                            echo 'checked="checked"';
-                        } ?> class="frm_ch1"  /> <span class="l-radio">Днепродзержинск</span>
+                                echo 'checked="checked"';
+                            } ?> class="frm_ch1"  /> <span class="l-radio">Днепродзержинск</span>
 								<input type="radio" name="fl_city" value="Новомосковск" <?php if ((isset($_GET['fl_city']) && $_GET['fl_city'] == 'Новомосковск')) {
-                            echo 'checked="checked"';
-                        } ?> class="frm_ch1"  /> <span class="l-radio">Новомосковск</span>-->
-                    </div>
-                    <div class="pull-right bg-warning bg-base2" style="font-size:12px;margin-left: 20px;padding: 0 6px;">
-                        <!-- <label class="l-radio">База данных</label> -->
-                        <input type="checkbox" name="frm[0]"
-                               value="1" <?php if ((isset($_GET['frm'][0]) && $_GET['frm'][0] == 1) || !isset($_GET['frm'])) {
-                            echo 'checked="checked"';
-                        } ?> class="frm_ch"/> <span class="l-radio">Квадрат</span>
+                                echo 'checked="checked"';
+                            } ?> class="frm_ch1"  /> <span class="l-radio">Новомосковск</span>-->
+                        </div>
+                        <div class="pull-right bg-warning bg-base2"
+                             style="font-size:12px;margin-left: 20px;padding: 0 6px;">
+                            <!-- <label class="l-radio">База данных</label> -->
+                            <input type="checkbox" name="frm[0]"
+                                   value="1" <?php if ((isset($_GET['frm'][0]) && $_GET['frm'][0] == 1) || !isset($_GET['frm'])) {
+                                echo 'checked="checked"';
+                            } ?> class="frm_ch"/> <span class="l-radio">Квадрат</span>
 
-                        <input type="checkbox" name="frm[1]"
-                               value="2" <?php if ((isset($_GET['frm'][1]) && $_GET['frm'][1] == 2) || !isset($_GET['frm'])) {
-                            echo 'checked="checked"';
-                        } ?> class="frm_ch"/> <span class="l-radio">Ray-2</span>
+                            <input type="checkbox" name="frm[1]"
+                                   value="2" <?php if ((isset($_GET['frm'][1]) && $_GET['frm'][1] == 2) || !isset($_GET['frm'])) {
+                                echo 'checked="checked"';
+                            } ?> class="frm_ch"/> <span class="l-radio">Ray-2</span>
 
-                        <input type="checkbox" name="frm[2]"
-                               value="3" <?php if ((isset($_GET['frm'][2]) && $_GET['frm'][2] == 3) || !isset($_GET['frm'])) {
-                            echo 'checked="checked"';
-                        } ?> class="frm_ch"/> <span class="l-radio">Сологуб</span>
-                        <input type="checkbox" name="frm[3]"
-                               value="4" <?php if ((isset($_GET['frm'][3]) && $_GET['frm'][3] == 4) || !isset($_GET['frm'])) {
-                            echo 'checked="checked"';
-                        } ?> class="frm_ch"/> <span class="l-radio">baza-broker</span>
+                            <input type="checkbox" name="frm[2]"
+                                   value="3" <?php if ((isset($_GET['frm'][2]) && $_GET['frm'][2] == 3) || !isset($_GET['frm'])) {
+                                echo 'checked="checked"';
+                            } ?> class="frm_ch"/> <span class="l-radio">Сологуб</span>
+                            <input type="checkbox" name="frm[3]"
+                                   value="4" <?php if ((isset($_GET['frm'][3]) && $_GET['frm'][3] == 4) || !isset($_GET['frm'])) {
+                                echo 'checked="checked"';
+                            } ?> class="frm_ch"/> <span class="l-radio">baza-broker</span>
 
-                    </div>
-                    <!-- <div class="pull-right" style="margin-right: 50px; margin-top: -4px">
+                        </div>
+                        <!-- <div class="pull-right" style="margin-right: 50px; margin-top: -4px">
 					 	<span style="text-align:center; font-size:16px; font-weight:100">Выбран</span> <span style="text-align:center; font-size:18px; font-weight:500"><?php if (isset($_GET['fl_city'])) {
-                        echo $_GET['fl_city'];
-                    } else {
-                        echo "Днепропетровск";
-                    } ?></span>
+                            echo $_GET['fl_city'];
+                        } else {
+                            echo "Днепропетровск";
+                        } ?></span>
 					 </div>-->
-                   <!-- <div class="pull-right" style="margin-right: 10px;margin-top: -4px">
-                        Фильтр:
-                    </div>-->
-                </legend>
+                        <!-- <div class="pull-right" style="margin-right: 10px;margin-top: -4px">
+                             Фильтр:
+                         </div>-->
+                    </legend>
 
-                <div id="fieldset_form">
-                    <input type="hidden" name="op" value="<?php echo $op; ?>"/>
-                    <input type="hidden" name="page" id="curr_page" value="<?php echo $page_c; ?>"/>
-                    <input type="hidden" name="pager_active" id="pager_active" value="false"/>
-                </div>
-                    
+                    <div id="fieldset_form">
+                        <input type="hidden" name="op" value="<?php echo $op; ?>"/>
+                        <input type="hidden" name="page" id="curr_page" value="<?php echo $page_c; ?>"/>
+                        <input type="hidden" name="pager_active" id="pager_active" value="false"/>
+                    </div>
+
                 </div>
 
 
             </div>
 
-            <div style="padding 0px; display:none; margin: 0px; height: 200px; visibility: hidden; overflow:hidden" id="di_d">
+            <div style="padding 0px; display:none; margin: 0px; height: 200px; visibility: hidden; overflow:hidden"
+                 id="di_d">
                 <?php
-                $op_i = isset($_GET['op']) ? $_GET['op'] : 1;
+               // $op_i = isset($_GET['op']) ? $_GET['op'] : 1;
+                if (isset($_GET['op'])) {
+                    if ($_GET['fl_city'] == 'Пригород')
+                        $op_i = 6;
+                    else
+                        $op_i = $_GET['op'];
+                }
+                else
+                    $op_i = 1;
+                $gr = '';
+                $gr_cl = '';
                 foreach ($districts[$op_i] as $dis) :
+                    if ($op_i == 6) {
+                        if ($dis == "Днепропетровский р-н") {$gr = "data-index='g1'"; $gr_cl = "class='gr_all'";}
+                        elseif ($dis == "Новомосковский р-н") {$gr = "data-index='g2'"; $gr_cl = "class='gr_all'";}
+                        else {$gr_cl = "class='gr_one'";}
+                    }
+                        
                     if (isset($_GET['fl_mic']) && in_array($dis, $_GET['fl_mic'])) {
-                        echo '<input type="checkbox" name="fl_mic[]" id="fl_mic" value="' . $dis . '" checked="checked">' . $dis . '<br>';
+                        echo '<input type="checkbox" '.$gr.'  '.$gr_cl.' name="fl_mic[]" id="fl_mic" value="' . $dis . '" checked="checked">' . $dis . '<br>';
                     } else {
-                        echo '<input type="checkbox" name="fl_mic[]" id="fl_mic" value="' . $dis . '">' . $dis . '<br>';
+                        echo '<input type="checkbox" '.$gr.' '.$gr_cl.' name="fl_mic[]" id="fl_mic" value="' . $dis . '">' . $dis . '<br>';
                     }
                 endforeach;
                 ?>
             </div>
 
-            <div style="padding 0px; display:none; margin: 0px; height: 0px; visibility: hidden;overflow:hidden" id="fl_d">
+            <div style="padding 0px; display:none; margin: 0px; height: 0px; visibility: hidden;overflow:hidden"
+                 id="fl_d">
                 <div>
                     <div style="float:left">
                         Этаж от <input name="fl_floor_from" class="form-control input-sm" type="text" placeholder="от"
@@ -845,7 +973,8 @@ if (!$ajax) {
                 </div>
             </div>
 
-            <div style="padding 0px; display:none; margin: 0px; height: 0px; visibility: hidden;overflow:hidden" id="st_d">
+            <div style="padding 0px; display:none; margin: 0px; height: 0px; visibility: hidden;overflow:hidden"
+                 id="st_d">
                 Укажите часть названия улицы
                 <input name="fl_street" class="form-control input-sm" type="text" placeholder="Улица"
                        value="<?php if (isset($_GET['fl_street'])) echo($_GET['fl_street']); ?>"/>
@@ -853,13 +982,15 @@ if (!$ajax) {
             </div>
 
 
-            <div style="padding 0px; display:none; margin: 0px; height: 0px; visibility: hidden;overflow:hidden" id="uid_d">
+            <div style="padding 0px; display:none; margin: 0px; height: 0px; visibility: hidden;overflow:hidden"
+                 id="uid_d">
                 Укажите цифри кода
                 <input name="uid" class="form-control input-sm" type="text" placeholder="Улица"
                        value="<?php if (isset($_GET['uid'])) echo($_GET['uid']); ?>"/>
 
             </div>
-            <div style="padding 0px; display:none; margin: 0px; height: 100px; visibility: hidden; overflow: hidden" id="ty_d">
+            <div style="padding 0px; display:none; margin: 0px; height: 100px; visibility: hidden; overflow: hidden"
+                 id="ty_d">
                 <?php
                 $op_i = isset($_GET['op']) ? $_GET['op'] : 1;
 
@@ -909,7 +1040,9 @@ if (!$ajax) {
                 } ?> value="Киоск(павильон)">Киоск(павильон)<br>-->
             </div>
 
-            <div style="padding:0px; display:none; display: none; margin: 0px; height: 0px; visibility: hidden; overflow:hidden" id="metka_d">
+            <div
+                style="padding:0px; display:none; display: none; margin: 0px; height: 0px; visibility: hidden; overflow:hidden"
+                id="metka_d">
                 <?php
                 for ($i = 0; $i <= 8; $i++) {
                     $metka = $i;
@@ -922,7 +1055,9 @@ if (!$ajax) {
                 ?>
             </div>
 
-            <div style="padding:0px; display:none; display: none; margin: 0px; height: 0px; visibility: hidden;overflow:hidden" id="ro_d">
+            <div
+                style="padding:0px; display:none; display: none; margin: 0px; height: 0px; visibility: hidden;overflow:hidden"
+                id="ro_d">
                 Кол-во комнат <br>
 
                 <input type="checkbox" class="" name="fl_rooms[1]"
@@ -952,7 +1087,9 @@ if (!$ajax) {
 
             </div>
 
-            <div style="padding:0px; display:none; display: none; margin: 0px; height: 0px; visibility: hidden;overflow:hidden" id="ar_d">
+            <div
+                style="padding:0px; display:none; display: none; margin: 0px; height: 0px; visibility: hidden;overflow:hidden"
+                id="ar_d">
                 Площадь от
                 <input name="area_from" class="form-control input-sm" type="text" placeholder="от"
                        value="<?php if (isset($_GET['area_from'])) echo($_GET['area_from']); ?>"/>
@@ -962,7 +1099,8 @@ if (!$ajax) {
             </div>
 
 
-            <div style="padding:0px; display: none; margin:0px; height: 0px; visibility: hidden;overflow:hidden" id="pr_d">
+            <div style="padding:0px; display: none; margin:0px; height: 0px; visibility: hidden;overflow:hidden"
+                 id="pr_d">
                 Цена от
                 <input name="fl_price_from" class="form-control input-sm" type="text" placeholder="мин"
                        value="<?php if (isset($_GET['fl_price_from'])) echo($_GET['fl_price_from']); ?>"/>
@@ -976,7 +1114,8 @@ if (!$ajax) {
                 <input name="fl_phone" class="form-control" type="text" placeholder="Телефон"
                        value="<?php if (isset($_GET['fl_phone'])) echo($_GET['fl_phone']); ?>"/>
             </div>
-            <div style="padding 0px; display:none; margin: 0px; height: 0px; visibility: hidden;overflow:hidden" id="date_d">
+            <div style="padding 0px; display:none; margin: 0px; height: 0px; visibility: hidden;overflow:hidden"
+                 id="date_d">
                 <input type="radio" name="fl_date_r"
                        value="fl_date_today" <?php if ((isset($_GET['fl_date_r']) && $_GET['fl_date_r'] == 'fl_date_today')) {
                     echo 'checked="checked"';
@@ -1115,57 +1254,72 @@ if (!$ajax) {
 <?php }
 foreach ($offers as $offer) {
     # code...
-    $usr_id = str_replace("user","", $_COOKIE['bd_usr']);?>
+    $usr_id = str_replace("user", "", $_COOKIE['bd_usr']);
+    $sql="SELECT COUNT(*) as count FROM watched_row WHERE post_id =:post_id and user_id=:user_id";
+    $db->bind("post_id",$offer['id_mn']);
+    $db->bind("user_id",$usr_id);
+    $watch = $db->query($sql);
+
+    if (isset($watch[0]['count']) and $watch[0]['count'] > 0)
+        $watched = 1;
+    else
+        $watched = 0;
+    //$usr_id1 =$watch[0]['user_id'];
+    //$usr_cur1 = $offer['user_id'];
+    $post_id1 = $offer['id_mn'];
+    //var_dump($offer);
+    ?>
+
     <tr id="<?php echo $offer['id_mn']; ?>">
         <!-- <td><?php echo $offer['region'] ?></td> -->
-        <!--  <td class=" <?php if($usr_id != $offer['user_id']) {
+        <!--  <td class=" <?php if ($watched == 0) {
             echo 'unwatched';
-        }  else echo 'watched';?>"><?php echo $offer['id_mn']; ?></td>-->
-        <td class=" <?php if($usr_id != $offer['user_id']) {
+        } else echo 'watched'; ?>"><?php echo $offer['id_mn']; ?></td>-->
+        <td class=" <?php if ($watched == 0) {
             echo 'unwatched';
-        }  else echo 'watched';?>"><?php if ($_GET['fl_city'] == "Пригород") {
+        } else echo 'watched'; ?>"><?php if ($_GET['fl_city'] == "Пригород") {
                 echo $offer['city'] . " / ";
             } else {
                 echo $offer['district'];
             } ?></td>
-        <td class=" <?php if($usr_id != $offer['user_id']) {
+        <td class=" <?php if ($watched == 0) {
             echo 'unwatched';
-        }  else echo 'watched';?>"><?php echo $offer['street']; ?></td>
-        <td class=" <?php if($usr_id != $offer['user_id']) {
+        } else echo 'watched'; ?>"><?php echo $offer['street']; ?></td>
+        <td class=" <?php if ($watched == 0) {
             echo 'unwatched';
-        }  else echo 'watched';?>"><?php echo $offer['estateType']; ?></td>
-        <td class=" <?php if($usr_id != $offer['user_id']) {
+        } else echo 'watched'; ?>"><?php echo $offer['estateType']; ?></td>
+        <td class=" <?php if ($watched == 0) {
             echo 'unwatched';
-        }  else echo 'watched';?>"><?php echo $offer['area_json']; ?></td>
-        <td class=" <?php if($usr_id != $offer['user_id']) {
+        } else echo 'watched'; ?>"><?php echo $offer['area_json']; ?></td>
+        <td class=" <?php if ($watched == 0) {
             echo 'unwatched';
-        }  else echo 'watched';?>"><?php echo $offer['floor']; ?> / <?php echo $offer['max_floor']; ?></td>
-        <td class=" <?php if($usr_id != $offer['user_id']) {
+        } else echo 'watched'; ?>"><?php echo $offer['floor']; ?> / <?php echo $offer['max_floor']; ?></td>
+        <td class=" <?php if ($watched == 0) {
             echo 'unwatched';
-        }  else echo 'watched';?>"><?php echo $offer['rooms']; ?></td>
-        <td class=" <?php if($usr_id != $offer['user_id']) {
+        } else echo 'watched'; ?>"><?php echo $offer['rooms']; ?></td>
+        <td class=" <?php if ($watched == 0) {
             echo 'unwatched';
-        }  else echo 'watched';?>"><?php if ($offer['price']) echo $offer['price'] . (($offer['operation'] == 1 || $offer['operation'] == 4) ? '$' : ' грн.'); else echo '---'; ?></td>
-        <td class=" <?php if($usr_id != $offer['user_id']) {
+        } else echo 'watched'; ?>"><?php if ($offer['price']) echo $offer['price'] . (($offer['operation'] == 1 || $offer['operation'] == 4) ? '$' : ' грн.'); else echo '---'; ?></td>
+        <td class=" <?php if ($watched == 0) {
             echo 'unwatched';
-        }  else echo 'watched';?>"><p class="pn"><?php echo $offer['phones']; ?></p></td>
-        <td class=" <?php if($usr_id != $offer['user_id']) {
+        } else echo 'watched'; ?>"><p class="pn"><?php echo $offer['phones']; ?></p></td>
+        <td class=" <?php if ($watched == 0) {
             echo 'unwatched';
-        }  else echo 'watched';?>"><?php echo date("d/m/Y H:i:s", $offer['adDate']); ?></td>
-        <td class=" <?php if($usr_id != $offer['user_id']) {
+        } else echo 'watched'; ?>"><?php echo date("d/m/Y H:i:s", $offer['adDate']); ?></td>
+        <td class=" <?php if ($watched == 0) {
             echo 'unwatched';
-        }  else echo 'watched';?>"><?php echo getFlag($offer['flags']); ?></td>
-        <td class=" <?php if($usr_id != $offer['user_id']) {
+        } else echo 'watched'; ?>"><?php echo getFlag($offer['flags']); ?></td>
+        <td class=" <?php if ($watched == 0) {
             echo 'unwatched';
-        }  else echo 'watched';?>"><?php if ($offer['flags'] == 6 || $offer['flags'] == 8) echo "<span>R</span>"; ?>
+        } else echo 'watched'; ?>"><?php if ($offer['flags'] == 6 || $offer['flags'] == 8) echo "<span>R</span>"; ?>
             <?php if (!preg_match('/kg-r/', $offer['url']) && $offer['url']) { ?><a href="<?php echo $offer['url']; ?>"
                                                                                     target="_blank">
                     Источник</a><?php } ?></td>
-        <td class=" <?php if($usr_id != $offer['user_id']) {
+        <td class=" <?php if ($watched == 0) {
             echo 'unwatched';
-        }  else echo 'watched';?>"><a href="#"
-                 onClick="showmore(<?php echo $offer['id_mn']; ?>);return false;">Описание <?php if (!empty($offer['idmn'])) {
-                    echo "<strong style='color:#ff382e'>+ К</strong>";
+        } else echo 'watched'; ?>"><a href="#"
+                                      onClick="showmore(<?php echo $offer['id_mn']; ?>);return false;">Описание <?php  if (!empty($offer['idmn'])) {
+                    echo "<strong style='color:#ff382e'>+ К</strong> ";
                 } ?></a>
             <div style="display:none;" id='t<?php echo $offer['id_mn']; ?>' data-imageid="<?= ($offer['images']); ?>">
                 <h4 style="display:none;"><?php echo typeop($offer['operation']); ?></h4>
@@ -1488,6 +1642,22 @@ if ($pages_pag < 16) {
         var photos_ARCHIVE_array = [];
         var active_ID = '';
         $(document).ready(function () {
+
+            $(".gr_all").on("change", function() {
+                var groupId = $(this).data('index');
+                $('.gr_one[data-index="' + groupId + '"]').prop("checked", this.checked);
+            });
+
+            $(".gr_one").on("change", function() {
+                var groupId = $(this).data('index');
+                var allChecked = $('.gr_one[data-index="' + groupId + '"]:not(:checked)').length == 0;
+                $('.gr_all[data-index="' + groupId + '"]').prop("checked", allChecked);
+            });
+            
+            
+            
+            
+            
             $('.paginator').click(function () {
                 var page = $(this).attr('data-attr');
                 $('#pager_active').val('true');
@@ -1496,7 +1666,8 @@ if ($pages_pag < 16) {
             });
 
             $('.reset-filter').click(function () {
-                location.replace('/');
+                location.replace('/?fl_city='+$('input[name=fl_city]:checked', '.bg-base1').val()+'&op=1');
+                //location.replace('/');
             });
 
             //$("#fl_type,#fl_mic").chosen();
@@ -1514,9 +1685,21 @@ if ($pages_pag < 16) {
             });
 
             $('.frm_ch1').on('click', function () {
+                var op = $('.active a').attr('name');
+                op = op.replace("?", "&");
                 $('#frm_filter').submit();
-                //location.replace('/?fl_city='+$(this).val());
+                location.replace('/?fl_city='+$(this).val()+op);
             });
+
+            $(".nav li").on('click', function(){
+                op = $(this).find('a').attr('name');
+                op = op.replace("?", "&");
+                fl_city = $('input[name="fl_city"]:checked', '#frm_filter').val();
+                url = '/?fl_city='+fl_city+op;
+                location.replace(url);
+
+            })
+
 
             $('#add_g_entry').on('click', function () {
                 $('#addEntryModal').modal('show');
@@ -1564,7 +1747,7 @@ if ($pages_pag < 16) {
                     var win_hei = $(window).height();
                     //alert(d_hei.top);
                     var html = $('#' + id).show().css({
-                        'height': win_hei - 100 + 'px',
+                        'height': 400 + 'px',//win_hei - 100 + 'px',
                         'visibility': 'visible',
                         'margin': '15px',
                         'overflow': 'scroll'
@@ -1675,10 +1858,10 @@ if ($pages_pag < 16) {
         function SaveUrl() {
             var location = window.location;
             if (location.search != '') {
-                var uid = <?php echo str_replace("user","", $_COOKIE['bd_usr']);?>;
+                var uid = <?php echo str_replace("user", "", $_COOKIE['bd_usr']);?>;
                 var query = location.search;
                 var name = $('#name_filter').val();
-                var data = {'mode': 'saveurl', 'query': query, 'name': name, 'userid':uid};
+                var data = {'mode': 'saveurl', 'query': query, 'name': name, 'userid': uid};
                 jQuery.ajax({
                     type: 'POST',
                     url: "parser/classes.php",
@@ -1687,10 +1870,10 @@ if ($pages_pag < 16) {
                     complete: function (data) {
 
                     },
-                    success: function(msg){
+                    success: function (msg) {
                         //alert(msg);
                     },
-                    error: function(msg){
+                    error: function (msg) {
                         //alert(msg);
                     }
                 });
@@ -1753,8 +1936,10 @@ if ($pages_pag < 16) {
                 $.get("comments.php", {id: id}).done(function (data) {
                     // alert( "Data Loaded: " + data );
                     for (i in data) {
-                        cmn.append("<p style=\"color:grey;\">" + data[i].author + ' ' + data[i].date + "</p>")
-                        cmn.append("<p>" + data[i].message + "</p>")
+                        
+                        cmn.append("<div class='comment-blok'><p class='mes-date' style=\"color:grey;\">" + data[i].author + ' ' + data[i].date + "</p><p class='mes-text'>" + data[i].message + "</p></div>")
+                        //cmn.append("<p class='mess'>" + data[i].message + "</p>")
+                        //cmn.append("</div>")
                     }
                     if (data.length) {
                         cmn.show();
@@ -1774,7 +1959,7 @@ if ($pages_pag < 16) {
 
                         }
                     });
-                    // console.log(data);
+                     console.log(data);
                 });
         }
 
